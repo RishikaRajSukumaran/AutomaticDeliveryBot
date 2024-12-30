@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bot Animation - Walkable Route</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    #map {
+      height: 100vh;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <script>
+    // Initialize the map
+    const map = L.map('map').setView([40.785091, -73.968285], 14); // Default view
+
+    // Add OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Fetch route data
+    fetch('path_coordinates.json')
+      .then(response => response.json())
+      .then(data => {
+        const routeCoords = data.routeCoords; // Entire route
+        const startCoord = data.startCoord; // First point
+        const endCoords = data.endCoords; // Support for multiple endpoints
+        // console.log(startCoord)
+        // console.log(endCoords)
+        // Add Start Marker (Blue)
+        const startIcon = L.icon({
+          iconUrl: 'office-building-removebg-preview.png',
+          iconSize: [25, 41],
+          iconAnchor: [12, 41]
+        });
+        L.marker(startCoord, { icon: startIcon })
+          .bindPopup("Start Point")
+          .addTo(map);
+
+        // Add End Marker(s) (Red)
+        const endIcon = L.icon({
+          iconUrl: 'Image_14-12-24_at_9.23_PM-removebg-preview.png',
+          iconSize: [25, 41],
+          iconAnchor: [12, 41]
+        });
+        endCoords.forEach(coord => {
+          L.marker(coord, { icon: endIcon })
+            .bindPopup("End Point")
+            .addTo(map);
+          // console.log(coord);
+        });
+
+        // Add polyline for the route
+        const polyline = L.polyline(routeCoords, {
+          color: 'blue',
+          weight: 5,
+          opacity: 0.8
+        }).addTo(map);
+
+        map.fitBounds(polyline.getBounds()); // Fit map to polyline bounds
+
+        // Add the Bot Marker (Green, animated separately)
+        const botIcon = L.icon({
+          iconUrl: 'package-removebg-preview.png',
+          iconSize: [25, 34],
+          iconAnchor: [12, 41]
+        });
+        const botMarker = L.marker(startCoord, { icon: botIcon }).addTo(map);
+
+        // Animate the bot along the route
+        let currentIndex = 0;
+        const speed = 1000; // Speed in milliseconds
+
+        function animateBot() {
+          if (currentIndex < routeCoords.length - 1) {
+            const start = routeCoords[currentIndex];
+            const end = routeCoords[currentIndex + 1];
+            const steps = 50; // Steps for smooth animation
+            let step = 0;
+
+            const interval = setInterval(() => {
+              if (step <= steps) {
+                const lat = start[0] + ((end[0] - start[0]) * step) / steps;
+                const lng = start[1] + ((end[1] - start[1]) * step) / steps;
+                botMarker.setLatLng([lat, lng]); // Update bot position
+                step++;
+              } else {
+                clearInterval(interval);
+                currentIndex++;
+                animateBot(); // Recursively move to the next segment
+              }
+            }, speed / steps);
+          }
+        }
+
+        animateBot(); // Start the bot animation
+      })
+      .catch(error => console.error("Error fetching JSON:", error));
+  </script>
+</body>
+</html>
